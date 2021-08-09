@@ -1,6 +1,6 @@
 // implement your posts router here
 
-const {find, findById, insert} = require('./posts-model');
+const {find, findById, insert, update, remove, findPostComments} = require('./posts-model');
 
 const express = require('express');
 
@@ -32,14 +32,9 @@ router.get('/:id', async (req, res) => {
     }
 })
 
-// WORKS CORRECTLY
-// BUT IF SINGULAR FILED IS PASSED (EITHER TITLE OR CONTENTS)
-// AND THERE IS A COMMA AFTER THAT FIELD
-// IT RETURNS THE BUGGED CIRCULAR REFERENCE SHEET
-// AND NOT THE ERROR MESSAGE
-// WHY
 router.post('/', async (req, res) => {
     const newPost = req.body;
+    console.log(newPost)
     if (!newPost?.title || !newPost?.contents) {
         res.status(400).json({message: "Please provide title and contents for the post"})
     } else {
@@ -52,14 +47,66 @@ router.post('/', async (req, res) => {
     }
 })
 
-// POST SCHEMA
-// title: "The post title", // String, required
-// contents: "The post contents", // String, required
-// created_at: Mon Aug 14 2017 12:50:16 GMT-0700 (PDT) // Date, defaults to current date
-// updated_at: Mon Aug 14 2017 12:50:16 GMT-0700 (PDT) // Date, defaults to current date
+router.put('/:id', async (req, res) => {
+    const {id} = req.params;
+    const postBody = req.body;
+    if (!postBody?.title || !postBody?.contents) {
+        res.status(400).json({message: "Please provide title and contents for the post"})
+    }
+    try{
+        const doesPostExist = await findById(id);
+        console.log('try1' + doesPostExist)
+        if (doesPostExist) {
+            try {
+                const updatedPost = await update(id, postBody);
+                res.status(200).json(doesPostExist)
+            } catch (err1) {
+                res.status(500).json({message: "The post information could not be modified"})
+            }
+        } else {
+            res.status(404).json({message: "The post with the specified ID does not exist"})
+        }
+    } catch(err) {
+        res.status(500).json({message: "The post information could not be retrieved"})
+    }
+})
 
-router.use('/', (req, res) => {
-    res.status(200).json({message: '/api/posts/ routes working'})
+router.delete('/:id', async (req, res) => {
+    const {id} = req.params;
+    try {
+        const doesPostExist = await findById(id)
+        if (doesPostExist) {
+            try {
+                const deletedPost = await remove(id);
+                res.status(200).json(deletedPost)
+            } catch(err1) {
+                res.status(500).json({message: "The post could not be removed"})
+            }
+        } else {
+            res.status(404).json({message: "The post with the specified ID does not exist"})
+        }
+    } catch(err) {
+        res.status(500).json({message: "The post information could not be retrieved"})
+    }
+})
+
+router.get('/:id/comments', async (req, res) => {
+    const {id} = req.params;
+    try {
+        const post = await findById(id)
+        if (post) {
+            try {
+                const comments = await findPostComments(id)
+                res.status(200).json(comments)
+            } catch(err1) {
+                res.status(500).json({message: "The comments information could not be retrieved"})
+            }
+        } else {
+            res.status(404).json({message: "The post with the specified ID does not exist"})
+        }
+    } catch(err) {
+        res.status(500).json({message: "The post information could not be retrieved"})
+    }
 })
 
 module.exports = router;
